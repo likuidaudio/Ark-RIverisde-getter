@@ -1,0 +1,100 @@
+#!/bin/bash
+# ╔══════════════════════════════════════════════════════╗
+# ║   ARK MEDIA — Compilar app para macOS                ║
+# ╚══════════════════════════════════════════════════════╝
+#
+# Uso:
+#   1. Abrí Terminal en esta carpeta
+#   2. chmod +x build_mac.sh
+#   3. ./build_mac.sh
+
+set -e   # Detener si cualquier comando falla
+
+echo ""
+echo "╔══════════════════════════════════════════════════════╗"
+echo "║   ARK MEDIA — Compilar app para macOS                ║"
+echo "╚══════════════════════════════════════════════════════╝"
+echo ""
+
+# ── Verificar Python 3 ────────────────────────────────────────────────────────
+if ! command -v python3 &>/dev/null; then
+    echo "[ERROR] Python 3 no está instalado."
+    echo "        Descargalo de: https://www.python.org/downloads/macos/"
+    echo "        IMPORTANTE: usar el instalador de python.org, NO el de Homebrew."
+    exit 1
+fi
+
+PYTHON_VER=$(python3 --version 2>&1)
+echo "[OK] $PYTHON_VER encontrado"
+echo ""
+
+# ── Verificar que tkinter está disponible ─────────────────────────────────────
+if ! python3 -c "import tkinter" &>/dev/null; then
+    echo "[ERROR] tkinter no está disponible en este Python."
+    echo "        Ocurre cuando usás el Python del sistema o de Homebrew."
+    echo "        Solución: instalá Python desde https://www.python.org/downloads/macos/"
+    exit 1
+fi
+echo "[OK] tkinter disponible"
+echo ""
+
+# ── Instalar dependencias ─────────────────────────────────────────────────────
+echo "[1/3] Instalando dependencias (requests + pyinstaller)..."
+pip3 install pyinstaller requests --quiet --disable-pip-version-check
+echo "[OK] Dependencias instaladas."
+echo ""
+
+# ── Compilar .app ─────────────────────────────────────────────────────────────
+echo "[2/3] Compilando ARK_Riverside_Flow.app  (puede tardar 1-2 min)..."
+echo ""
+
+# Limpiar compilaciones anteriores
+rm -rf build dist ARK_Riverside_Flow.spec 2>/dev/null || true
+
+pyinstaller \
+    --windowed \
+    --name "ARK_Riverside_Flow" \
+    --hidden-import=concurrent.futures \
+    --hidden-import=tkinter \
+    --hidden-import=tkinter.ttk \
+    --hidden-import=tkinter.messagebox \
+    --hidden-import=tkinter.filedialog \
+    ark_riverside_flow.py
+
+# ── Limpiar archivos temporales ───────────────────────────────────────────────
+echo ""
+echo "[3/3] Limpiando archivos temporales..."
+rm -rf build __pycache__ ARK_Riverside_Flow.spec
+
+# ── Copiar config.json al lado del .app ───────────────────────────────────────
+if [ -f config.json ]; then
+    cp config.json dist/config.json
+    echo "[OK] config.json copiado a dist/"
+fi
+
+# ── Crear ZIP para distribuir ─────────────────────────────────────────────────
+echo ""
+echo "Creando ZIP para distribución..."
+cd dist
+zip -r ARK_Riverside_Flow_mac.zip ARK_Riverside_Flow.app config.json 2>/dev/null || \
+zip -r ARK_Riverside_Flow_mac.zip ARK_Riverside_Flow.app
+cd ..
+echo "[OK] dist/ARK_Riverside_Flow_mac.zip listo para compartir"
+
+echo ""
+echo "╔══════════════════════════════════════════════════════╗"
+echo "║   ✓ LISTO!                                           ║"
+echo "║                                                      ║"
+echo "║   App:  dist/ARK_Riverside_Flow.app                  ║"
+echo "║   ZIP:  dist/ARK_Riverside_Flow_mac.zip              ║"
+echo "║                                                      ║"
+echo "║   Para distribuir a empleados, entregales el ZIP.    ║"
+echo "║   Al descomprimir verán el .app y el config.json.    ║"
+echo "║                                                      ║"
+echo "║   PRIMERA VEZ EN MAC NUEVO:                          ║"
+echo "║   macOS puede bloquear el app. Solución:             ║"
+echo "║   → Clic derecho sobre el .app → Abrir → Abrir       ║"
+echo "║                                                      ║"
+echo "║   El .app no requiere Python instalado.              ║"
+echo "╚══════════════════════════════════════════════════════╝"
+echo ""
